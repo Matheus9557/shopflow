@@ -8,6 +8,8 @@ import com.matheus.shopflow.order.dto.OrderResponse;
 import com.matheus.shopflow.order.entity.Order;
 import com.matheus.shopflow.order.entity.OrderItem;
 import com.matheus.shopflow.order.repository.OrderRepository;
+import com.matheus.shopflow.shared.exception.NotFoundException;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -24,13 +26,14 @@ public class OrderService {
         this.cartRepository = cartRepository;
     }
 
+    @Transactional
     public OrderResponse checkout(CheckoutRequest request) {
 
-        Cart cart = cartRepository.findById(request.cartId())
-                .orElseThrow(() -> new RuntimeException("Cart not found"));
+        Cart cart = cartRepository.findWithItemsById(request.cartId())
+                .orElseThrow(() -> new NotFoundException("Cart not found"));
 
         if (cart.getItems().isEmpty()) {
-            throw new RuntimeException("Cart is empty");
+            throw new IllegalStateException("Cart is empty");
         }
 
         Order order = new Order(cart.getCustomerId());
@@ -46,6 +49,7 @@ public class OrderService {
             order.addItem(orderItem);
         }
 
+        cart.checkout();
         order.markPaymentPending();
 
         Order saved = orderRepository.save(order);

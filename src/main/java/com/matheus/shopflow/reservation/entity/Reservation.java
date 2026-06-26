@@ -22,8 +22,7 @@ public class Reservation extends BaseEntity {
     @Column(nullable = false)
     private ReservationStatus status;
 
-    protected Reservation() {
-    }
+    protected Reservation() {}
 
     public Reservation(Long productId, Integer quantity, LocalDateTime expiresAt) {
         if (quantity <= 0) {
@@ -37,14 +36,33 @@ public class Reservation extends BaseEntity {
     }
 
     public void expire() {
-        if (status == ReservationStatus.ACTIVE) {
-            status = ReservationStatus.EXPIRED;
+        if (status != ReservationStatus.ACTIVE) {
+            return;
         }
+
+        status = ReservationStatus.EXPIRED;
     }
 
     public void confirm() {
-        if (status == ReservationStatus.ACTIVE) {
-            status = ReservationStatus.CONFIRMED;
+        ensureActive();
+        status = ReservationStatus.CONFIRMED;
+    }
+
+    public void cancel() {
+        ensureActive();
+        status = ReservationStatus.CANCELLED;
+    }
+
+    public boolean isExpired() {
+        return status == ReservationStatus.ACTIVE
+                && LocalDateTime.now().isAfter(expiresAt);
+    }
+
+    private void ensureActive() {
+        if (status != ReservationStatus.ACTIVE) {
+            throw new IllegalStateException(
+                    "Reservation is not active. Current status: " + status
+            );
         }
     }
 

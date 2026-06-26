@@ -6,7 +6,7 @@ import com.matheus.shopflow.cart.service.CartService;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/carts")
+@RequestMapping("/carts")
 public class CartController {
 
     private final CartService service;

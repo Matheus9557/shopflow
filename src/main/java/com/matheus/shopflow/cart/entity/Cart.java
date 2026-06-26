@@ -18,7 +18,11 @@ public class Cart {
     @Enumerated(EnumType.STRING)
     private CartStatus status;
 
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(
+            cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.LAZY
+    )
     @JoinColumn(name = "cart_id")
     private List<CartItem> items = new ArrayList<>();
 
@@ -29,8 +33,18 @@ public class Cart {
         this.status = CartStatus.ACTIVE;
     }
 
-    public void addItem(CartItem item) {
-        items.add(item);
+    public void addItem(CartItem newItem) {
+        CartItem existingItem = items.stream()
+                .filter(item -> item.getProductId().equals(newItem.getProductId()))
+                .findFirst()
+                .orElse(null);
+
+        if (existingItem != null) {
+            existingItem.increaseQuantity(newItem.getQuantity());
+            return;
+        }
+
+        items.add(newItem);
     }
 
     public BigDecimal total() {

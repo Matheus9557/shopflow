@@ -9,6 +9,8 @@ import com.matheus.shopflow.cart.repository.CartRepository;
 import com.matheus.shopflow.inventory.service.InventoryService;
 import com.matheus.shopflow.product.entity.Product;
 import com.matheus.shopflow.product.repository.ProductRepository;
+import com.matheus.shopflow.shared.exception.NotFoundException;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -28,6 +30,7 @@ public class CartService {
         this.inventoryService = inventoryService;
     }
 
+    @Transactional
     public CartResponse addItem(AddItemRequest request) {
 
         Cart cart = cartRepository
@@ -38,21 +41,21 @@ public class CartService {
                 .orElse(new Cart(request.customerId()));
 
         Product product = productRepository.findById(request.productId())
-                .orElseThrow(() -> new RuntimeException("Product not found"));
+                .orElseThrow(() -> new NotFoundException("Product not found"));
 
         inventoryService.reserveStock(
                 request.productId(),
                 request.quantity()
         );
 
-        CartItem item = new CartItem(
+        CartItem newItem = new CartItem(
                 product.getId(),
                 product.getName(),
                 request.quantity(),
                 product.getPrice()
         );
 
-        cart.addItem(item);
+        cart.addItem(newItem);
 
         Cart saved = cartRepository.save(cart);
 

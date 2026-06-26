@@ -17,7 +17,16 @@ public class ProductController {
     }
 
     @PostMapping
-    public ResponseEntity<ProductResponse> create(@RequestBody ProductRequest request) {
+    public ResponseEntity<ProductResponse> create(
+            @RequestBody ProductRequest request
+    ) {
         return ResponseEntity.ok(service.create(request));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ProductResponse> getById(
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(service.getById(id));
     }
 }
