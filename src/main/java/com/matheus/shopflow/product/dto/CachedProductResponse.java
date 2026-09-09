@@ -2,11 +2,13 @@ package com.matheus.shopflow.product.dto;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 public record CachedProductResponse(
         Long id,
         String name,
         String description,
-        BigDecimal price
+        BigDecimal price,
+        LocalDateTime createdAt
 ) implements Serializable {
 }

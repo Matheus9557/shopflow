@@ -8,6 +8,7 @@ import com.matheus.shopflow.product.repository.ProductRepository;
 import com.matheus.shopflow.shared.exception.NotFoundException;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 
@@ -18,16 +19,17 @@ public class ProductService {
     private static final Duration CACHE_TTL = Duration.ofMinutes(10);
 
     private final ProductRepository repository;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final RedisTemplate<String, CachedProductResponse> redisTemplate;
 
     public ProductService(
             ProductRepository repository,
-            RedisTemplate<String, Object> redisTemplate
+            RedisTemplate<String, CachedProductResponse> redisTemplate
     ) {
         this.repository = repository;
         this.redisTemplate = redisTemplate;
     }
 
+    @Transactional
     public ProductResponse create(ProductRequest request) {
 
         Product product = new Product(
@@ -43,19 +45,20 @@ public class ProductService {
 
     public ProductResponse getById(Long id) {
 
-        String cacheKey = PRODUCT_CACHE_PREFIX + id;
+        String cacheKey = buildCacheKey(id);
 
-        Object cached = redisTemplate.opsForValue().get(cacheKey);
+        CachedProductResponse cached =
+                redisTemplate.opsForValue().get(cacheKey);
 
-        if (cached instanceof CachedProductResponse productCache) {
+        if (cached != null) {
             System.out.println("REDIS HIT");
 
             return new ProductResponse(
-                    productCache.id(),
-                    productCache.name(),
-                    productCache.description(),
-                    productCache.price(),
-                    null
+                    cached.id(),
+                    cached.name(),
+                    cached.description(),
+                    cached.price(),
+                    cached.createdAt()
             );
         }
 
@@ -65,12 +68,7 @@ public class ProductService {
                 .orElseThrow(() -> new NotFoundException("Product not found"));
 
         CachedProductResponse cacheValue =
-                new CachedProductResponse(
-                        product.getId(),
-                        product.getName(),
-                        product.getDescription(),
-                        product.getPrice()
-                );
+                toCachedResponse(product);
 
         redisTemplate.opsForValue().set(
                 cacheKey,
@@ -81,7 +79,75 @@ public class ProductService {
         return toResponse(product);
     }
 
+    @Transactional
+    public ProductResponse update(
+            Long id,
+            ProductRequest request
+    ) {
+
+        Product product = repository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Product not found"));
+
+        product.changeName(request.name());
+        product.changeDescription(request.description());
+        product.changePrice(request.price());
+
+        Product updated = repository.save(product);
+
+        updateCache(updated);
+
+        return toResponse(updated);
+    }
+
+    @Transactional
+    public void delete(Long id) {
+
+        Product product = repository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Product not found"));
+
+        repository.delete(product);
+
+        evictCache(id);
+    }
+
+    private void updateCache(Product product) {
+
+        String cacheKey = buildCacheKey(product.getId());
+
+        CachedProductResponse cacheValue =
+                toCachedResponse(product);
+
+        redisTemplate.opsForValue().set(
+                cacheKey,
+                cacheValue,
+                CACHE_TTL
+        );
+    }
+
+    private void evictCache(Long id) {
+
+        String cacheKey = buildCacheKey(id);
+
+        redisTemplate.delete(cacheKey);
+    }
+
+    private String buildCacheKey(Long id) {
+        return PRODUCT_CACHE_PREFIX + id;
+    }
+
+    private CachedProductResponse toCachedResponse(Product product) {
+
+        return new CachedProductResponse(
+                product.getId(),
+                product.getName(),
+                product.getDescription(),
+                product.getPrice(),
+                product.getCreatedAt()
+        );
+    }
+
     private ProductResponse toResponse(Product product) {
+
         return new ProductResponse(
                 product.getId(),
                 product.getName(),
