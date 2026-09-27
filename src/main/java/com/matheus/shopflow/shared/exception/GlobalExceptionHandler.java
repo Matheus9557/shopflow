@@ -2,6 +2,8 @@ package com.matheus.shopflow.shared.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authorization.AuthorizationDeniedException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -23,10 +25,33 @@ public class GlobalExceptionHandler {
                 .body(buildResponse(400, ex.getMessage()));
     }
 
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<?> handleValidation(
+            MethodArgumentNotValidException ex
+    ) {
+        String message = ex.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .findFirst()
+                .map(error -> error.getDefaultMessage())
+                .orElse("Invalid request");
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(buildResponse(400, message));
+    }
+
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<?> handleIllegalState(IllegalStateException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(buildResponse(409, ex.getMessage()));
+    }
+
+    @ExceptionHandler(AuthorizationDeniedException.class)
+    public ResponseEntity<?> handleAuthorizationDenied(
+            AuthorizationDeniedException ex
+    ) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(buildResponse(403, "Access denied"));
     }
 
     @ExceptionHandler(Exception.class)
@@ -37,7 +62,10 @@ public class GlobalExceptionHandler {
                 .body(buildResponse(500, "Internal server error"));
     }
 
-    private Map<String, Object> buildResponse(int status, String message) {
+    private Map<String, Object> buildResponse(
+            int status,
+            String message
+    ) {
         return Map.of(
                 "timestamp", LocalDateTime.now(),
                 "status", status,

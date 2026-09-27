@@ -7,9 +7,12 @@ import org.springframework.data.jpa.repository.Lock;
 
 import java.util.Optional;
 
-public interface InventoryRepository extends JpaRepository<Inventory, Long> {
+public interface InventoryRepository
+        extends JpaRepository<Inventory, Long> {
 
     Optional<Inventory> findByProductId(Long productId);
+
+    boolean existsByProductId(Long productId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<Inventory> findLockedByProductId(Long productId);

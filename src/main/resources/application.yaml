@@ -8,6 +8,10 @@ spring:
     password: shopflow123
     driver-class-name: org.postgresql.Driver
 
+security:
+  jwt:
+    expiration: 1h
+
   jpa:
     hibernate:
       ddl-auto: update
